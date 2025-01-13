@@ -1,0 +1,172 @@
+import React, { useEffect, useRef } from 'react';
+import * as echarts from 'echarts';
+
+const GanttChart = ({ data }) => {
+    const chartRef = useRef(null);
+
+    useEffect(() => {
+        let chart = null;
+
+        if (chartRef.current) {
+            chart = echarts.getInstanceByDom(chartRef.current) || echarts.init(chartRef.current);
+
+            const categories = [];
+            const series = [];
+            let categoryIndex = 0;
+
+            const startTime = new Date('2024-01-08T20:00').getTime();
+            const endTime = new Date('2024-01-09T11:00').getTime();
+
+            data.forEach((group) => {
+                if (group.name) {
+                    categories.push({ name: group.name, level: 0, isParent: true });
+                    categoryIndex += 1; // Reserve space for the parent category
+                }
+
+                group.tasks.forEach((task) => {
+                    categories.push({ name: task.name, level: 1, isParent: false });
+                    const subCategoryIndex = categoryIndex;
+
+                    task.phases.forEach((phase) => {
+                        series.push({
+                            type: 'custom',
+                            renderItem: (params, api) => {
+                                const start = api.coord([api.value(1), subCategoryIndex]);
+                                const end = api.coord([api.value(2), subCategoryIndex]);
+                                const height = api.size([0, 1])[1] * 0.6;
+
+                                // Create the rectangle
+                                const rect = {
+                                    type: 'rect',
+                                    shape: {
+                                        x: start[0],
+                                        y: start[1] - height / 2,
+                                        width: end[0] - start[0],
+                                        height: height,
+                                    },
+                                    style: {
+                                        fill: api.value(3), // Use the color value from the data
+                                        stroke: '#000',
+                                        lineWidth: 1,
+                                    },
+                                };
+
+                                // Create the text if it exists
+                                const text = api.value(4); // Get the text value from the data
+                                const textElement = text
+                                    ? {
+                                          type: 'text', // Make sure type is defined
+                                          style: {
+                                              text: text,
+                                              x: (start[0] + end[0]) / 2, // Center text horizontally
+                                              y: start[1], // Position text vertically
+                                              fill: '#fff', // Text color
+                                              font: 'bold 12px sans-serif',
+                                              align: 'center',
+                                              verticalAlign: 'middle',
+                                          },
+                                      }
+                                    : null;
+
+                                return textElement ? [rect, textElement] : rect;
+                            },
+                            encode: {
+                                x: [1, 2],
+                                y: 0,
+                            },
+                            data: [
+                                [
+                                    subCategoryIndex,
+                                    new Date(phase.start).getTime(),
+                                    new Date(phase.end).getTime(),
+                                    phase.color, // Color
+                                    phase.text || '', // Text (default to empty string if no text)
+                                ],
+                            ],
+                        });
+                    });
+
+                    categoryIndex += 1;
+                });
+            });
+
+            // Reverse the categories for the desired order
+            categories.reverse();
+
+            // Map original indices to reversed indices
+            const categoryMap = new Map();
+            categories.forEach((item, index) => {
+                categoryMap.set(item.name, index);
+            });
+
+            // Update subCategoryIndex in series to match reversed categories
+            series.forEach((serie) => {
+                if (serie.type === 'custom' || serie.type === 'scatter') {
+                    serie.data = serie.data.map((dataPoint) => {
+                        const originalIndex = dataPoint[0];
+                        const reversedIndex = categoryMap.get(categories[originalIndex].name);
+                        return [reversedIndex, ...dataPoint.slice(1)];
+                    });
+                }
+            });
+
+            const option = {
+                tooltip: {
+                    formatter: (params) => {
+                        if (params.seriesType === 'scatter') {
+                            return '关键点';
+                        }
+                        const start = new Date(params.value[1]).toLocaleString();
+                        const end = new Date(params.value[2]).toLocaleString();
+                        return `${params.seriesName}<br/>开始: ${start}<br/>结束: ${end}`;
+                    },
+                },
+                grid: {
+                    containLabel: true,
+                    left: 150,
+                    right: 50,
+                    top: 50,
+                    bottom: 10,
+                },
+                xAxis: {
+                    type: 'time',
+                    position: 'top',
+                    min: startTime,
+                    max: endTime,
+                    axisLabel: {
+                        formatter: '{HH}:{mm}',
+                    },
+                    splitLine: { show: true },
+                },
+                yAxis: {
+                    type: 'category',
+                    data: categories.map((item) =>
+                        item.isParent
+                            ? `{bold|${item.name}}`
+                            : `${item.name}`
+                    ),
+                    axisLabel: {
+                        align: 'right',
+                        margin: 10,
+                        rich: {
+                            bold: { fontWeight: 'bold' },
+                        },
+                    },
+                    splitLine: { show: false },
+                },
+                series: series,
+            };
+
+            chart.setOption(option);
+            window.addEventListener('resize', () => chart.resize());
+
+            return () => {
+                chart.dispose();
+            };
+        }
+    }, [data]);
+
+    return <div ref={chartRef} style={{ width: '100%', height: '600px' }} />;
+};
+
+export default GanttChart;
