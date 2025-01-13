@@ -1,0 +1,73 @@
+renderItem: (params, api) => {
+    const start = api.coord([api.value(1), subCategoryIndex]);
+    const end = api.coord([api.value(2), subCategoryIndex]);
+    const height = api.size([0, 1])[1] * 0.6;
+
+    const rect = {
+        type: 'rect',
+        shape: {
+            x: start[0],
+            y: start[1] - height / 2,
+            width: end[0] - start[0],
+            height: height,
+        },
+        style: {
+            fill: api.value(3), // Use the color value from the data
+            stroke: '#000',
+            lineWidth: 1,
+        },
+    };
+
+    const text = api.value(4); // Get the text value from the data
+    const textElement = text
+        ? {
+              type: 'text',
+              style: {
+                  text: text,
+                  x: (start[0] + end[0]) / 2, // Center text horizontally
+                  y: start[1], // Position text vertically
+                  fill: '#fff', // Text color
+                  font: 'bold 12px sans-serif',
+                  align: 'center',
+                  verticalAlign: 'middle',
+              },
+          }
+        : null;
+
+    return textElement ? [rect, textElement] : rect;
+},
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+data: [
+    [
+        subCategoryIndex,
+        new Date(phase.start).getTime(),
+        new Date(phase.end).getTime(),
+        phase.color, // Color
+        phase.text || '', // Text (default to empty string if no text)
+    ],
+],
+
+
+
+
+
+
+
+
