@@ -1,0 +1,29 @@
+function generateData(sourceData) {
+        const groupedData = {};
+        sourceData.forEach((item) => {
+            if (!groupedData[item.monitorType]) {
+                groupedData[item.monitorType] = {};
+            }
+
+            if (!groupedData[item.monitorType][item.monitorSubType]) {
+                groupedData[item.monitorType][item.monitorSubType] = [];
+            }
+
+            groupedData[item.monitorType][item.monitorSubType].push({
+                start: item.startTime,
+                end: item.endTime,
+                color: colorMapping[item.status] || "#FF0000",
+                text: item.milesstones || "",
+            });
+        });
+        
+        const ganttData = Object.keys(groupedData).map((monitorType) => ({
+            name: monitorType,
+            tasks: Object.keys(groupedData[monitorType]).map((monitorSubType) => ({
+                name: monitorSubType,
+                phases: groupedData[monitorType][monitorSubType],
+            })),
+        }));
+        
+        return ganttData;
+    }
