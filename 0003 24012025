@@ -1,0 +1,281 @@
+import React, { useEffect, useRef } from 'react';
+import * as echarts from 'echarts';
+
+const GanttChart = ({ data }) => {
+    const chartRef = useRef(null);
+
+    useEffect(() => {
+        let chart = null;
+
+        if (chartRef.current) {
+            chart = echarts.getInstanceByDom(chartRef.current) || echarts.init(chartRef.current);
+
+            const categories = [];
+            const series = [];
+            let categoryIndex = 0;
+
+            let startTime = null;
+            let endTime = null;
+
+            data.forEach((group) => {
+              group.tasks.forEach((task) => {
+                task.phases.forEach((phase) => {
+                  const min = new Date(phase.start).getTime();
+                  const max = new Date(phase.end).getTime();
+                  if(!max || min < startTime){
+                    startTime = min;
+                  }
+                  if (startTime || endTime > endTime){
+                    endTime = max;
+                  }
+                });
+
+                if(task.milestones){
+                  task.milestones.forEach((milestone)=>{
+                    const milestoneTime = new Date(milestone.time).getTime();
+                    if(milestoneTime < startTime){
+                      startTime = milestoneTime;
+                    }
+                    if(milestoneTime > endTime){
+                      endTime = milestoneTime;
+                    }
+                  });
+                }
+              });
+            });
+
+            data.forEach((group) => {
+                categories.push({ name: group.name, level: 0, isParent: true });
+
+                group.tasks.forEach((task) => {
+                    categories.push({ name: task.name, level: 1, isParent: false });
+                });
+
+                categoryIndex += 1 + group.tasks.length;
+            });
+
+            // Reverse the categories for the desired order
+            categories.reverse();
+
+            // Map original indices to reversed indices
+            const categoryMap = new Map();
+            categories.forEach((item, index) => {
+                categoryMap.set(item.name, index);
+            });
+
+            // Rebuild the series with updated subCategoryIndex
+            data.forEach((group) => {
+                group.tasks.forEach((task) => {
+                    const subCategoryIndex = categoryMap.get(task.name);
+
+                    series.push({
+                        type: 'custom',
+                        name:'',
+                        renderItem: (params, api) => {
+                            const start = api.coord([api.value(1), subCategoryIndex]);
+                            const end = api.coord([api.value(2), subCategoryIndex]);
+                            const suggestStart = api.coord([api.value(5), subCategoryIndex]);
+                            const suggestEnd = api.coord([api.value(6), subCategoryIndex]);
+                            const height = api.size([0, 1])[1] * 0.6;
+                            const text = api.value(4)
+                            const topHeight = height * 0.8;
+                            const bottomHeight = height * 0.2;
+
+                            return {
+                                type:'group',
+                                children:[{
+                                    type: 'rect',
+                                    shape: {
+                                        x: start[0],
+                                        y: start[1] - height / 2,
+                                        width: end[0] - start[0],
+                                        height: topHeight,
+                                    },
+                                    style: {
+                                        fill: api.value(3),,
+                                        stroke: '#000',
+                                        lineWidth: 1,
+                                    },
+                                },
+                                {
+                                    type: 'rect',
+                                    shape: {
+                                        x: suggestStart[0],
+                                        y: suggestStart[1] - height / 2 + topHeight,
+                                        width: suggestEnd[0] - suggestStart[0],
+                                        height: bottomHeight,
+                                    },
+                                    style: {
+                                        fill: "yellow",
+                                        stroke: '#000',
+                                        lineWidth: 1,
+                                    },
+                                },
+                                {
+                                    type: 'text',
+                                    style: {
+                                        x: (start[0] + end[0]) / 2,
+                                        y: start[1],
+                                        text: text || '',
+                                        fill: '#FFF',
+                                        textAlign: 'center',
+                                        textVerticalAlign: 'middle',
+                                        fontSize: 10,
+                                        fontWeight: 'bold',
+                                    },
+                                    z: 10000,
+                                }]} ;
+                        },
+                        encode: {
+                            x: [1, 2],
+                            y: 0,
+                        },
+                        data: task.phases.map((phase) => [
+                            subCategoryIndex,
+                            new Date(phase.start).getTime(),
+                            new Date(phase.end).getTime(),
+                            phase.color,
+                            phase.text,
+                            new Date(phase.suggestStart).getTime(),
+                            new Date(phase.suggestEnd).getTime(),
+                            phase.totalCount,
+                            phase.completionCount,
+                            phase.totalTime,
+                            phase.id,
+                        ]),
+                    });
+
+                    if (task.milestones) {
+                        task.milestones.forEach((milestone) => {
+                            series.push({
+                                type: 'scatter',
+                                data: [[subCategoryIndex, new Date(milestone.time).getTime()]],
+                                symbol: 'circle',
+                                symbolSize: 10,
+                                itemStyle: { color: 'red' },
+                            });
+                        });
+                    }
+                });
+            });
+
+            const option = {
+                tooltip: {
+                    formatter: (params) => {
+                        if (params.seriesType === 'scatter') {
+                            return `${params.value[7]? params.value[8]:''}/${params.value[7]}${params.value[9]}<br/>${params.value[4]}`;
+                        }
+                        return `${params.value[7]? params.value[8]:''}/${params.value[7]}${params.value[9]}<br/>${params.value[4]}`;
+                    },
+                },
+                grid: {
+                    containLabel: true,
+                    left: 150,
+                    right: 50,
+                    top: 50,
+                    bottom: 10,
+                },
+                xAxis: {
+                    type: 'time',
+                    position: 'top',
+                    min: startTime,
+                    max: endTime,
+                    axisLabel: {
+                        formatter: '{HH}:{mm}',
+                    },
+                    splitLine: { show: true },
+                },
+                yAxis: {
+                    type: 'category',
+                    data: categories.map((item) =>
+                        item.isParent
+                            ? `{bold|${item.name}}                           `
+                            : `${item.name}`
+                    ),
+                    axisLabel: {
+                        align: 'right',
+                        margin: 10,
+                        rich: {
+                            bold: { fontWeight: 'bold' },
+                        },
+                    },
+                    splitLine: { show: false },
+                },
+                series: series,
+            };
+            chart.setOption(option);
+            window.addEventListener('resize', () => chart.resize());
+
+            return () => {
+                chart.dispose();
+            };
+        }
+    }, [data]);
+
+    return <div ref={chartRef} style={{ width: '100%', height: '600px' }} />;
+};
+
+export default GanttChart;
+
+export default function BatchMonitoring(){
+
+const [batchMonitoringInfoData, setbatchMonitoringInfoData] = useState([]);
+const dispatch = useDispatch();
+const colorMapping = {1:"#65789B",
+2:"#F44336"};
+
+function generateData(sourceData) {
+        const groupedData = {};
+        sourceData.forEach((item) => {
+            if (!groupedData[item.monitorType]) {
+                groupedData[item.monitorType] = {};
+            }
+
+            if (!groupedData[item.monitorType][item.monitorSubType]) {
+                groupedData[item.monitorType][item.monitorSubType] = [];
+            }
+
+            groupedData[item.monitorType][item.monitorSubType].push({
+                start: item.startTime,
+                end: item.endTime,
+                color: colorMapping[item.status] || "#FF0000",
+                text: item.milesstones || "",
+                suggestStart: item.suggestStartTime,
+                suggestEnd: item.suggestEndTime,
+                totalCount: item.totalCnt,
+                completionCount: item.completionCnt,
+                totalTime: item.totalTime,
+                id:item.id,
+            });
+        });
+        
+        const ganttData = Object.keys(groupedData).map((monitorType) => ({
+            name: monitorType,
+            tasks: Object.keys(groupedData[monitorType]).map((monitorSubType) => ({
+                name: monitorSubType,
+                phases: groupedData[monitorType][monitorSubType],
+            })),
+        }));
+        
+        return ganttData;
+    }
+
+  useEffect(()=>{
+    BatchMonitioringAction.fetchBatchInfo(dispatch).then((data)=>{
+      setBatchMonitoringInfoData(generateData(data.data));
+  });
+  },[]);
+
+  return(
+    <>
+      <GanttChart data={batchMonitoringInfoData}/>
+    </>
+  );
+}
+
+
+
+
+
+
+
