@@ -32,4 +32,38 @@
 "updateTime": "2025-01-15 12:24:15",
 "createUser": null
 },
+{
+"id":3,
+"monitorType":"HUB",
+"monitorSubType":"type1",
+"milesstones":"2",
+"startTime":"2025-01-14 16:10:54",
+"endTime":"2025-01-14 17:10:54",
+"suggestStartTime":"2025-01-14 16:10:54",
+"suggestEndTime":"2025-01-14 19:10:54",
+"status":"1",
+"totalCnt": 3,
+"completionCnt":1,
+"totalTime":"54h:10min20s",
+"createTime": "2025-01-15 11:55:22",
+"updateTime": "2025-01-15 12:24:15",
+"createUser": null
+},
+{
+"id":4,
+"monitorType":"MCA",
+"monitorSubType":"type2",
+"milesstones":"2",
+"startTime":"2025-01-14 16:10:54",
+"endTime":"2025-01-14 17:10:54",
+"suggestStartTime":"2025-01-14 16:10:54",
+"suggestEndTime":"2025-01-14 19:10:54",
+"status":"1",
+"totalCnt": 3,
+"completionCnt":1,
+"totalTime":"54h:10min20s",
+"createTime": "2025-01-15 11:55:22",
+"updateTime": "2025-01-15 12:24:15",
+"createUser": null
+}
 ]
